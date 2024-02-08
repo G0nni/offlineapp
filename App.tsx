@@ -1,118 +1,93 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  TextInput,
+  Button,
+  Text,
+  FlatList,
+  SafeAreaView,
+  Alert,
 } from 'react-native';
+import {MMKV} from 'react-native-mmkv';
+import NetInfo from '@react-native-community/netinfo';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+type Note = {id: string; text: string};
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+const App = () => {
+  const [noteText, setNoteText] = useState('');
+  const [notes, setNotes] = useState<Note[]>([]);
+  const storage = new MMKV();
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const handleAddNote = () => {
+    // Ajouter la note dans MMKV et mettre à jour l'état
+    const newNote = {id: Date.now().toString(), text: noteText};
+    const updatedNotes = [...notes, newNote];
+    storage.set('notes', JSON.stringify(updatedNotes));
+    setNotes(updatedNotes);
+    setNoteText('');
+    console.log('Ajout de la note', newNote);
+    Alert.alert('Note ajoutée');
   };
 
+  const handleDeleteNote = (id: string) => {
+    // Supprimer la note de MMKV et mettre à jour l'état
+    const updatedNotes = notes.filter(note => note.id !== id);
+    storage.set('notes', JSON.stringify(updatedNotes));
+    setNotes(updatedNotes);
+    console.log('Suppression de la note', id);
+    Alert.alert('Note supprimée');
+  };
+
+  const syncData = () => {
+    // Synchroniser les données avec l'API
+    const savedNotes = storage.getString('notes');
+    console.log("Synchronisation des données avec l'API", savedNotes);
+  };
+
+  useEffect(() => {
+    // Charger les notes depuis MMKV
+    const savedNotes = storage.getString('notes');
+    if (savedNotes) {
+      setNotes(JSON.parse(savedNotes));
+      console.log(notes);
+    }
+
+    // Configurer la vérification périodique de la connexion Internet
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        syncData();
+        console.log('connected:', state.isConnected);
+        console.log('type :', state.type);
+      }
+    });
+  }, []);
+
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    // Interface utilisateur pour ajouter et afficher les notes
+    <SafeAreaView>
+      <View>
+        <TextInput
+          placeholder="Ajouter une note"
+          value={noteText}
+          onChangeText={setNoteText}
+        />
+        <Button title="Ajouter" onPress={handleAddNote} />
+      </View>
+      <FlatList
+        data={notes}
+        keyExtractor={item => item.id}
+        renderItem={({item}) => (
+          <View>
+            <Text>{item.text}</Text>
+            <Button
+              onPress={() => handleDeleteNote(item.id)}
+              title="Supprimer"
+            />
+          </View>
+        )}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
