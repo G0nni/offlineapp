@@ -41,6 +41,7 @@ const App = () => {
   const syncData = () => {
     // Synchroniser les données avec l'API
     const savedNotes = storage.getString('notes');
+
     console.log("Synchronisation des données avec l'API", savedNotes);
   };
 
@@ -60,6 +61,7 @@ const App = () => {
         console.log('type :', state.type);
       }
     });
+    return unsubscribe;
   }, []);
 
   return (
